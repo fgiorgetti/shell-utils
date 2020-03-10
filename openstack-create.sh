@@ -11,12 +11,16 @@ function error_exit() {
 # User must provide OpenStack credential info first
 [[ -z ${OS_PASSWORD} || -z ${OS_USERNAME} ]] && error_exit "Please provide your OpenStack credentials first"
 
+# Constants
+IP_ATTEMPTS=6
+IP_SLEEP=30
+
 # You can customize this based on your own project settings
 read_var FLAVOR "VM flavor to use" true "m1.small" "m1.tiny" "m1.small" "m1.medium" "m1.large" "m1.xlarge"
-read_var IMAGE "Snapshot image name" true "amq-ic-170-rhel-7x"
+read_var IMAGE "Snapshot image name" true "amq-ic-rhel-7x-server"
 read_var KEY_NAME "Key name to log in" true "cci"
 read_var NETWORK_NAME "Network name" true "provider_net_cci_1"
-read_var SECURITY_GROUP "Security group" true "wide-open"
+read_var SECURITY_GROUP "Security group" true "default"
 read_var VM_NAME "Virtual machine name" true
 
 echo
@@ -36,11 +40,11 @@ openstack server create --flavor "${FLAVOR}" --image "${IMAGE}" --security-group
 
 if [ $? -eq 0 ]; then
     echo "Retrieving IP Addresses"
-    for ((i=0; i<3; i++)); do
+    for ((i=0; i<${IP_ATTEMPTS}; i++)); do
         IP_ADDR=`openstack server show -c addresses -f value ${VM_NAME} | grep -o '[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}\.[0-9]\{1,3\}'`
         [[ -n "${IP_ADDR}" ]] && break
-        echo not ready... waiting 20 secs for another attempt
-        sleep 20
+        echo not ready... waiting ${IP_SLEEP} secs for another attempt
+        [[ $i -lt ${IP_ATTEMPTS} ]] && sleep ${IP_SLEEP}
     done
     echo "IP    : ${IP_ADDR}"
 fi
